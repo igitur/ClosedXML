@@ -335,9 +335,9 @@ namespace ClosedXML.Excel
 
             if (CustomProperties.Any())
             {
-                document.GetPartsOfType<CustomFilePropertiesPart>().ToList().ForEach(p => document.DeletePart(p));
-                var customFilePropertiesPart =
-                    document.AddNewPart<CustomFilePropertiesPart>(context.RelIdGenerator.GetNext(RelType.Workbook));
+                var customFilePropertiesPart = document.GetPartsOfType<CustomFilePropertiesPart>().Any()
+                    ? document.GetPartsOfType<CustomFilePropertiesPart>().Single()
+                    : document.AddNewPart<CustomFilePropertiesPart>(context.RelIdGenerator.GetNext(RelType.Workbook));
 
                 GenerateCustomFilePropertiesPartContent(customFilePropertiesPart);
             }
@@ -1748,10 +1748,10 @@ namespace ClosedXML.Excel
             themePart.Theme = theme1;
         }
 
-        private void GenerateCustomFilePropertiesPartContent(CustomFilePropertiesPart customFilePropertiesPart1)
+        private void GenerateCustomFilePropertiesPartContent(CustomFilePropertiesPart customFilePropertiesPart)
         {
-            var properties2 = new DocumentFormat.OpenXml.CustomProperties.Properties();
-            properties2.AddNamespaceDeclaration("vt",
+            var properties = new DocumentFormat.OpenXml.CustomProperties.Properties();
+            properties.AddNamespaceDeclaration("vt",
                 "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes");
             var propertyId = 1;
             foreach (var p in CustomProperties)
@@ -1791,10 +1791,10 @@ namespace ClosedXML.Excel
                     var vTBool1 = new VTBool { Text = p.GetValue<Boolean>().ToString().ToLower() };
                     customDocumentProperty.AppendChild(vTBool1);
                 }
-                properties2.AppendChild(customDocumentProperty);
+                properties.AppendChild(customDocumentProperty);
             }
 
-            customFilePropertiesPart1.Properties = properties2;
+            customFilePropertiesPart.Properties = properties;
         }
 
         private void SetPackageProperties(OpenXmlPackage document)
@@ -3418,8 +3418,6 @@ namespace ClosedXML.Excel
             {
                 foreach (var cf in ws.ConditionalFormats)
                 {
-                    //var ie = context.DifferentialFormats.Keys.First().Equals(cf.Style);
-
                     if (!cf.Style.Equals(DefaultStyle) && !context.DifferentialFormats.ContainsKey(cf.Style))
                         AddConditionalDifferentialFormat(workbookStylesPart.Stylesheet.DifferentialFormats, cf, context);
                 }
