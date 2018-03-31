@@ -315,6 +315,7 @@
     <EmbeddedResource Include="Resource\StyleReferenceFiles\TransparentBackgroundFill\TransparentBackgroundFill.xlsx" />
     <EmbeddedResource Include="Resource\StyleReferenceFiles\ConditionalFormattingOrder\inputfile.xlsx" />
     <EmbeddedResource Include="Resource\StyleReferenceFiles\ConditionalFormattingOrder\ConditionalFormattingOrder.xlsx" />
+    <EmbeddedResource Include="Resource\PivotTableReferenceFiles\BlankPivotTableField\BlankPivotTableField.xlsx" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resource\Images\ImageHandling.png" />
