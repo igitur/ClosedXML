@@ -71,9 +71,7 @@ namespace ClosedXML_Tests.Excel
             {
                 TestHelper.CreateAndCompare(() =>
                 {
-                    var wb = new XLWorkbook(stream);
-                    wb.SaveAs(ms);
-                    return wb;
+                    return new XLWorkbook(stream);
                 }, @"StyleReferenceFiles\TransparentBackgroundFill\TransparentBackgroundFill.xlsx");
             }
         }
