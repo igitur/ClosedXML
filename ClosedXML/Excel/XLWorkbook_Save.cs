@@ -3972,7 +3972,8 @@ namespace ClosedXML.Excel
                                 break;
                         }
 
-                        patternFill.AppendChild(backgroundColor);
+                        if (backgroundColor.HasChildren)
+                            patternFill.AppendChild(backgroundColor);
                     }
                     else
                     {
@@ -3985,7 +3986,11 @@ namespace ClosedXML.Excel
                                 break;
 
                             case XLColorType.Indexed:
-                                foregroundColor.Indexed = (UInt32)fillInfo.Fill.BackgroundColor.Indexed;
+                                // 64 is 'transparent' and should be ignored for differential formats
+                                if (fillInfo.Fill.BackgroundColor.Indexed != 64)
+                                    foregroundColor.Indexed = (UInt32)fillInfo.Fill.BackgroundColor.Indexed;
+
+                                //foregroundColor.Indexed = (UInt32)fillInfo.Fill.BackgroundColor.Indexed;
                                 break;
 
                             case XLColorType.Theme:
@@ -3997,7 +4002,8 @@ namespace ClosedXML.Excel
                                 break;
                         }
 
-                        patternFill.AppendChild(foregroundColor);
+                        if (foregroundColor.HasChildren)
+                            patternFill.AppendChild(foregroundColor);
                     }
                     break;
 
@@ -4023,7 +4029,8 @@ namespace ClosedXML.Excel
                             break;
                     }
 
-                    patternFill.AppendChild(foregroundColor);
+                    if (foregroundColor.HasChildren)
+                        patternFill.AppendChild(foregroundColor);
 
                     backgroundColor = new BackgroundColor();
                     switch (fillInfo.Fill.BackgroundColor.ColorType)
@@ -4045,14 +4052,19 @@ namespace ClosedXML.Excel
                             break;
                     }
 
-                    patternFill.AppendChild(backgroundColor);
+                    if (backgroundColor.HasChildren)
+                        patternFill.AppendChild(backgroundColor);
 
                     break;
             }
 
-            fill.AppendChild(patternFill);
+            if (patternFill.HasChildren)
+                fill.AppendChild(patternFill);
 
-            return fill;
+            if (fill.HasChildren)
+                return fill;
+            else
+                return null;
         }
 
         private bool FillsAreEqual(Fill f, XLFillValue xlFill, Boolean fromDifferentialFormat)
