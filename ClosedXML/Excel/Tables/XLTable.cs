@@ -181,7 +181,7 @@ namespace ClosedXML.Excel
             }
         }
 
-        public new IXLBaseAutoFilter SetAutoFilter()
+        public new IXLAutoFilter SetAutoFilter()
         {
             return AutoFilter;
         }
@@ -531,7 +531,7 @@ namespace ClosedXML.Excel
             return this;
         }
 
-        IXLBaseAutoFilter IXLTable.AutoFilter
+        IXLAutoFilter IXLTable.AutoFilter
         {
             get { return AutoFilter; }
         }
