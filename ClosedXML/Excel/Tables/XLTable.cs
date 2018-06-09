@@ -1,9 +1,13 @@
-﻿using System;
+﻿using ClosedXML.Attributes;
+using FastMember;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace ClosedXML.Excel
@@ -12,6 +16,7 @@ namespace ClosedXML.Excel
     internal class XLTable : XLRange, IXLTable
     {
         #region Private fields
+
         private string _name;
         internal bool _showTotalsRow;
         internal HashSet<String> _uniqueNames;
@@ -822,7 +827,7 @@ namespace ClosedXML.Excel
 
         public IXLTable CopyTo(IXLWorksheet targetSheet)
         {
-            return CopyTo((XLWorksheet) targetSheet);
+            return CopyTo((XLWorksheet)targetSheet);
         }
 
         internal IXLTable CopyTo(XLWorksheet targetSheet, bool copyData = true)
@@ -859,6 +864,370 @@ namespace ClosedXML.Excel
                 tableField.totalsRowFunction = tField.totalsRowFunction;
             }
             return newTable;
+        }
+
+        #region Append and replace data
+
+        public IXLRange AppendData(IEnumerable data)
+        {
+            return AppendData(data, false);
+        }
+
+        public IXLRange AppendData(IEnumerable data, bool transpose)
+        {
+            if (data == null || data is String)
+                return null;
+
+            var numberOfNewRows = data.Cast<object>().Count();
+            var lastRowOfOldRange = this.DataRange.LastRow();
+            lastRowOfOldRange.InsertRowsBelow(numberOfNewRows);
+
+            return OverwriteTableData(lastRowOfOldRange.RowBelow(), data, transpose);
+        }
+
+        public IXLRange AppendData(DataTable dataTable)
+        {
+            return AppendData(dataTable.Rows.Cast<DataRow>());
+        }
+
+        public IXLRange AppendData<T>(IEnumerable<T> data)
+        {
+            if (!data.Any() || data is String)
+                return null;
+
+            var numberOfNewRows = data.Count();
+            var lastRowOfOldRange = this.DataRange.LastRow();
+            lastRowOfOldRange.InsertRowsBelow(numberOfNewRows);
+
+            return OverwriteTableData(lastRowOfOldRange.RowBelow(), data);
+        }
+
+        public IXLRange ReplaceData(IEnumerable data)
+        {
+            return ReplaceData(data, false);
+        }
+
+        public IXLRange ReplaceData(IEnumerable data, bool transpose)
+        {
+            if (data == null || data is String)
+                throw new InvalidOperationException("Cannot replace table data with empty enumerable.");
+
+            // Resize table
+            var sizeDifference = data.Cast<object>().Count() - this.DataRange.RowCount();
+            if (sizeDifference > 0)
+                this.DataRange.LastRow().InsertRowsBelow(sizeDifference);
+            else if (sizeDifference < 0)
+                this.DataRange.Rows(this.LastRow().RowNumber() + sizeDifference + 1, this.LastRow().RowNumber())
+                    .OrderByDescending(r => r.RowNumber())
+                    .ForEach(r => r.Delete());
+
+            this.DataRange.Clear(XLClearOptions.Contents);
+
+            return this.OverwriteTableData(this.DataRange.FirstRow(), data, transpose);
+        }
+
+        public IXLRange ReplaceData(DataTable dataTable)
+        {
+            return ReplaceData(dataTable.Rows.Cast<DataRow>());
+        }
+
+        public IXLRange ReplaceData<T>(IEnumerable<T> data)
+        {
+            if (!data.Any() || data is String)
+                throw new InvalidOperationException("Cannot replace table data with empty enumerable.");
+
+            // Resize table
+            var sizeDifference = data.Count() - this.DataRange.RowCount();
+            if (sizeDifference > 0)
+                this.DataRange.LastRow().InsertRowsBelow(sizeDifference);
+            else if (sizeDifference < 0)
+                this.DataRange.Rows(this.LastRow().RowNumber() + sizeDifference + 1, this.LastRow().RowNumber())
+                    .OrderByDescending(r => r.RowNumber())
+                    .ForEach(r => r.Delete());
+
+            this.DataRange.Clear(XLClearOptions.Contents);
+
+            return this.OverwriteTableData(this.DataRange.FirstRow(), data);
+        }
+
+        internal IXLRange OverwriteTableData(IXLTableRow firstRow, IEnumerable data, bool transpose)
+        {
+            if (data == null || data is String)
+                return null;
+
+            var firstCell = firstRow.FirstCell();
+            var rowNumber = firstCell.Address.RowNumber;
+            var columnNumber = firstCell.Address.ColumnNumber;
+
+            var maxColumnNumber = 0;
+            var maxRowNumber = 0;
+            var isDataTable = false;
+            var isDataReader = false;
+
+            const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static;
+            var memberCache = new Dictionary<Type, IEnumerable<MemberInfo>>();
+            var accessorCache = new Dictionary<Type, TypeAccessor>();
+            IEnumerable<MemberInfo> members = null;
+            TypeAccessor accessor = null;
+
+            foreach (var m in data)
+            {
+                var itemType = m.GetType();
+
+                if (transpose)
+                    rowNumber = firstCell.Address.RowNumber;
+                else
+                    columnNumber = firstCell.Address.ColumnNumber;
+
+                if (itemType.IsPrimitive || itemType == typeof(String) || itemType == typeof(DateTime) || itemType.IsNumber())
+                {
+                    Worksheet.SetValue(m, rowNumber, columnNumber);
+
+                    if (transpose)
+                        rowNumber++;
+                    else
+                        columnNumber++;
+                }
+                else if (itemType.IsArray)
+                {
+                    foreach (var item in (Array)m)
+                    {
+                        Worksheet.SetValue(item, rowNumber, columnNumber);
+
+                        if (transpose)
+                            rowNumber++;
+                        else
+                            columnNumber++;
+                    }
+                }
+                else if (isDataTable || m is DataRow)
+                {
+                    if (!isDataTable)
+                        isDataTable = true;
+
+                    foreach (var item in (m as DataRow).ItemArray)
+                    {
+                        Worksheet.SetValue(item, rowNumber, columnNumber);
+
+                        if (transpose)
+                            rowNumber++;
+                        else
+                            columnNumber++;
+                    }
+                }
+                else if (isDataReader || m is IDataRecord)
+                {
+                    if (!isDataReader)
+                        isDataReader = true;
+
+                    var record = m as IDataRecord;
+
+                    var fieldCount = record.FieldCount;
+                    for (var i = 0; i < fieldCount; i++)
+                    {
+                        Worksheet.SetValue(record[i], rowNumber, columnNumber);
+
+                        if (transpose)
+                            rowNumber++;
+                        else
+                            columnNumber++;
+                    }
+                }
+                else
+                {
+                    if (!memberCache.ContainsKey(itemType))
+                    {
+                        var _accessor = TypeAccessor.Create(itemType);
+
+                        var _members = itemType.GetFields(bindingFlags).Cast<MemberInfo>()
+                             .Concat(itemType.GetProperties(bindingFlags))
+                             .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
+                             .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
+
+                        memberCache.Add(itemType, _members);
+                        accessorCache.Add(itemType, _accessor);
+                    }
+
+                    accessor = accessorCache[itemType];
+                    members = memberCache[itemType];
+
+                    foreach (var mi in members)
+                    {
+                        if (mi.MemberType == MemberTypes.Property && (mi as PropertyInfo).GetGetMethod().IsStatic)
+                            Worksheet.SetValue((mi as PropertyInfo).GetValue(null, null), rowNumber, columnNumber);
+                        else if (mi.MemberType == MemberTypes.Field && (mi as FieldInfo).IsStatic)
+                            Worksheet.SetValue((mi as FieldInfo).GetValue(null), rowNumber, columnNumber);
+                        else
+                            Worksheet.SetValue(accessor[m, mi.Name], rowNumber, columnNumber);
+
+                        if (transpose)
+                            rowNumber++;
+                        else
+                            columnNumber++;
+                    }
+                }
+
+                if (transpose)
+                    columnNumber++;
+                else
+                    rowNumber++;
+
+                if (columnNumber > maxColumnNumber)
+                    maxColumnNumber = columnNumber;
+
+                if (rowNumber > maxRowNumber)
+                    maxRowNumber = rowNumber;
+            }
+
+            var lastCell = this.Worksheet.Cell(maxRowNumber - 1, maxColumnNumber - 1);
+
+            return Worksheet.Range(firstCell, lastCell);
+        }
+
+        internal IXLRange OverwriteTableData<T>(IXLTableRow firstRow, IEnumerable<T> data)
+        {
+            if (!(data?.Any() ?? false) || data is String)
+                return null;
+
+            var firstCell = firstRow.FirstCell();
+
+            var currentRowNumber = firstCell.Address.RowNumber;
+            var maximumColumnNumber = 0;
+            var maximumRowNumber = 0;
+
+            var isDataTable = false;
+            var isDataReader = false;
+            var itemType = data.GetItemType();
+
+            if (itemType.IsPrimitive || itemType == typeof(String) || itemType == typeof(DateTime) || itemType.IsNumber())
+            {
+                foreach (object o in data)
+                {
+                    var currentColumnNumber = firstCell.Address.ColumnNumber;
+                    Worksheet.SetValue(o, currentRowNumber, currentColumnNumber);
+                    maximumColumnNumber = Math.Max(currentColumnNumber, maximumColumnNumber);
+
+                    currentRowNumber++;
+                }
+            }
+            else
+            {
+                const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static;
+                var memberCache = new Dictionary<Type, IEnumerable<MemberInfo>>();
+                var accessorCache = new Dictionary<Type, TypeAccessor>();
+                IEnumerable<MemberInfo> members = null;
+                TypeAccessor accessor = null;
+                bool isPlainObject = itemType == typeof(object);
+
+                if (!isPlainObject)
+                {
+                    members = itemType.GetFields(bindingFlags).Cast<MemberInfo>()
+                        .Concat(itemType.GetProperties(bindingFlags))
+                        .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
+                        .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
+
+                    accessor = TypeAccessor.Create(itemType);
+                }
+
+                foreach (T m in data)
+                {
+                    var currentColumnNumber = firstCell.Address.ColumnNumber;
+
+                    if (isPlainObject)
+                    {
+                        // In this case data is just IEnumerable<object>, which means we have to determine the runtime type of each element
+                        // This is very inefficient and we prefer type of T to be a concrete class or struct
+                        var type = m.GetType();
+                        if (!memberCache.ContainsKey(type))
+                        {
+                            var _accessor = TypeAccessor.Create(type);
+
+                            var _members = type.GetFields(bindingFlags).Cast<MemberInfo>()
+                                 .Concat(type.GetProperties(bindingFlags))
+                                 .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
+                                 .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
+
+                            memberCache.Add(type, _members);
+                            accessorCache.Add(type, _accessor);
+                        }
+
+                        members = memberCache[type];
+                        accessor = accessorCache[type];
+                    }
+                    else if (members == null)
+                        return null;
+
+                    if (itemType.IsArray)
+                    {
+                        foreach (var item in (m as Array))
+                        {
+                            Worksheet.SetValue(item, currentRowNumber, currentColumnNumber);
+                            currentColumnNumber++;
+                        }
+                    }
+                    else if (isDataTable || m is DataRow)
+                    {
+                        var row = m as DataRow;
+                        if (!isDataTable)
+                            isDataTable = true;
+
+                        foreach (var item in row.ItemArray)
+                        {
+                            Worksheet.SetValue(item, currentRowNumber, currentColumnNumber);
+                            currentColumnNumber++;
+                        }
+                    }
+                    else if (isDataReader || m is IDataRecord)
+                    {
+                        if (!isDataReader)
+                            isDataReader = true;
+
+                        var record = m as IDataRecord;
+
+                        var fieldCount = record.FieldCount;
+
+                        for (var i = 0; i < fieldCount; i++)
+                        {
+                            Worksheet.SetValue(record[i], currentRowNumber, currentColumnNumber);
+                            currentColumnNumber++;
+                        }
+                    }
+                    else
+                    {
+                        foreach (var mi in members)
+                        {
+                            if (mi.MemberType == MemberTypes.Property && (mi as PropertyInfo).GetGetMethod().IsStatic)
+                                Worksheet.SetValue((mi as PropertyInfo).GetValue(null, null), currentRowNumber, currentColumnNumber);
+                            else if (mi.MemberType == MemberTypes.Field && (mi as FieldInfo).IsStatic)
+                                Worksheet.SetValue((mi as FieldInfo).GetValue(null), currentRowNumber, currentColumnNumber);
+                            else
+                                Worksheet.SetValue(accessor[m, mi.Name], currentRowNumber, currentColumnNumber);
+
+                            currentColumnNumber++;
+                        }
+                    }
+
+                    maximumColumnNumber = Math.Max(maximumColumnNumber, currentColumnNumber - 1);
+                    maximumRowNumber = Math.Max(maximumRowNumber, currentRowNumber);
+
+                    currentRowNumber++;
+                }
+            }
+
+            ClearMerged();
+
+            var lastCell = this.Worksheet.Cell(maximumRowNumber, maximumColumnNumber);
+
+            return Worksheet.Range(firstCell, lastCell);
+        }
+
+        #endregion Append and replace data
+
+        private void ClearMerged()
+        {
+            List<IXLRange> mergeToDelete = Worksheet.Internals.MergedRanges.GetIntersectedRanges(this.AsRange().RangeAddress).ToList();
+
+            mergeToDelete.ForEach(m => Worksheet.Internals.MergedRanges.Remove(m));
         }
     }
 }
