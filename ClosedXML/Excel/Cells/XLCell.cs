@@ -640,247 +640,275 @@ namespace ClosedXML.Excel
             }
         }
 
-        public IXLTable InsertTable<T>(IEnumerable<T> data)
+        public IXLTable InsertTable<T>(IEnumerable<T> data, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertTable(data, null, true);
+            return InsertTable(data, null, true, insertDataOptions);
         }
 
-        public IXLTable InsertTable<T>(IEnumerable<T> data, bool createTable)
+        public IXLTable InsertTable<T>(IEnumerable<T> data, bool createTable, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertTable(data, null, createTable);
+            return InsertTable(data, null, createTable, insertDataOptions);
         }
 
-        public IXLTable InsertTable<T>(IEnumerable<T> data, string tableName)
+        public IXLTable InsertTable<T>(IEnumerable<T> data, string tableName, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertTable(data, tableName, true);
+            return InsertTable(data, tableName, true, insertDataOptions);
         }
 
-        public IXLTable InsertTable<T>(IEnumerable<T> data, string tableName, bool createTable)
+        public IXLTable InsertTable<T>(IEnumerable<T> data, string tableName, bool createTable, XLInsertDataOptions insertDataOptions = null)
         {
             if (createTable && this.Worksheet.Tables.Any(t => t.Contains(this)))
                 throw new InvalidOperationException(String.Format("This cell '{0}' is already part of a table.", this.Address.ToString()));
 
-            if (data != null && !(data is String))
-            {
-                var ro = _rowNumber + 1;
-                var fRo = _rowNumber;
-                var hasTitles = false;
-                var maxCo = 0;
-                var isDataTable = false;
-                var isDataReader = false;
-                var itemType = data.GetItemType();
+            if (data == null || data is String)
+                return null;
 
-                if (!data.Any())
+            var currentRowNumber = _rowNumber + 1;
+            var firstRowNumber = _rowNumber;
+            var hasTitles = false;
+            var maximumColumnNumber = 0;
+            var isDataTable = false;
+            var isDataReader = false;
+            var itemType = data.GetItemType();
+
+            // 0-based
+            IDictionary<int, IXLNumberFormat> formats = new SortedDictionary<int, IXLNumberFormat>();
+            Action<Type, int> addFormat = (type, currentColumn) =>
+            {
+                if (type.IsNumber())
+                    formats.Add(currentColumn - _columnNumber, insertDataOptions?.NumericFormat);
+                else if (type == typeof(DateTime))
+                    formats.Add(currentColumn - _columnNumber, insertDataOptions?.DateTimeFormat);
+                else if (type == typeof(TimeSpan))
+                    formats.Add(currentColumn - _columnNumber, insertDataOptions?.TimespanFormat);
+                else
+                    formats.Add(currentColumn - _columnNumber, null);
+            };
+
+            if (!data.Any())
+            {
+                if (itemType.IsPrimitive || itemType == typeof(String) || itemType == typeof(DateTime) || itemType == typeof(TimeSpan) || itemType.IsNumber())
+                    maximumColumnNumber = _columnNumber + 1;
+                else
+                    maximumColumnNumber = _columnNumber + itemType.GetFields().Length + itemType.GetProperties().Length;
+            }
+            else if (itemType.IsPrimitive || itemType == typeof(String) || itemType == typeof(DateTime) || itemType == typeof(TimeSpan) || itemType.IsNumber())
+            {
+                foreach (object o in data)
                 {
-                    if (itemType.IsPrimitive || itemType == typeof(String) || itemType == typeof(DateTime) || itemType.IsNumber())
-                        maxCo = _columnNumber + 1;
-                    else
-                        maxCo = _columnNumber + itemType.GetFields().Length + itemType.GetProperties().Length;
-                }
-                else if (itemType.IsPrimitive || itemType == typeof(String) || itemType == typeof(DateTime) || itemType.IsNumber())
-                {
-                    foreach (object o in data)
+                    var co = _columnNumber;
+
+                    if (!hasTitles)
                     {
-                        var co = _columnNumber;
+                        var fieldName = XLColumnAttribute.GetHeader(itemType);
+                        if (String.IsNullOrWhiteSpace(fieldName))
+                            fieldName = itemType.Name;
+
+                        Worksheet.SetValue(fieldName, firstRowNumber, co);
+                        hasTitles = true;
+                        co = _columnNumber;
+                    }
+
+                    Worksheet.SetValue(o, currentRowNumber, co);
+                    co++;
+
+                    if (co > maximumColumnNumber)
+                        maximumColumnNumber = co;
+
+                    currentRowNumber++;
+                }
+
+                addFormat(itemType, 0);
+            }
+            else
+            {
+                const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static;
+                var memberCache = new Dictionary<Type, IEnumerable<MemberInfo>>();
+                var accessorCache = new Dictionary<Type, TypeAccessor>();
+                IEnumerable<MemberInfo> members = null;
+                TypeAccessor accessor = null;
+                bool isPlainObject = itemType == typeof(object);
+
+                if (!isPlainObject)
+                {
+                    members = itemType.GetFields(bindingFlags).Cast<MemberInfo>()
+                         .Concat(itemType.GetProperties(bindingFlags))
+                         .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
+                         .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
+
+                    //accessor = TypeAccessor.Create(itemType, 0);
+                }
+
+                foreach (T m in data)
+                {
+                    if (isPlainObject)
+                    {
+                        // In this case data is just IEnumerable<object>, which means we have to determine the runtime type of each element
+                        // This is very inefficient and we prefer type of T to be a concrete class or struct
+                        var type = m.GetType();
+                        if (!memberCache.ContainsKey(type))
+                        {
+                            var _accessor = TypeAccessor.Create(type);
+
+                            var _members = type.GetFields(bindingFlags).Cast<MemberInfo>()
+                                 .Concat(type.GetProperties(bindingFlags))
+                                 .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
+                                 .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
+
+                            memberCache.Add(type, _members);
+                            accessorCache.Add(type, _accessor);
+                        }
+
+                        members = memberCache[type];
+                        accessor = accessorCache[type];
+                    }
+
+                    var currentColumn = _columnNumber;
+
+                    if (itemType.IsArray)
+                    {
+                        foreach (var item in (m as Array))
+                        {
+                            Worksheet.SetValue(item, currentRowNumber, currentColumn);
+                            currentColumn++;
+                        }
+                    }
+                    else if (isDataTable || m is DataRow)
+                    {
+                        var row = m as DataRow;
+                        if (!isDataTable)
+                            isDataTable = true;
 
                         if (!hasTitles)
                         {
-                            var fieldName = XLColumnAttribute.GetHeader(itemType);
-                            if (String.IsNullOrWhiteSpace(fieldName))
-                                fieldName = itemType.Name;
+                            foreach (var dataColumn in
+                                row.Table
+                                .Columns
+                                .Cast<DataColumn>())
+                            {
+                                var fieldName = String.IsNullOrWhiteSpace(dataColumn.Caption) ? dataColumn.ColumnName : dataColumn.Caption;
+                                Worksheet.SetValue(fieldName, firstRowNumber, currentColumn);
+                                addFormat(dataColumn.DataType, currentColumn);
 
-                            Worksheet.SetValue(fieldName, fRo, co);
+                                currentColumn++;
+                            }
+
+                            currentColumn = _columnNumber;
                             hasTitles = true;
-                            co = _columnNumber;
                         }
 
-                        Worksheet.SetValue(o, ro, co);
-                        co++;
-
-                        if (co > maxCo)
-                            maxCo = co;
-
-                        ro++;
+                        foreach (var item in row.ItemArray)
+                        {
+                            Worksheet.SetValue(item, currentRowNumber, currentColumn);
+                            currentColumn++;
+                        }
                     }
-                }
-                else
-                {
-                    const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static;
-                    var memberCache = new Dictionary<Type, IEnumerable<MemberInfo>>();
-                    var accessorCache = new Dictionary<Type, TypeAccessor>();
-                    IEnumerable<MemberInfo> members = null;
-                    TypeAccessor accessor = null;
-                    bool isPlainObject = itemType == typeof(object);
-
-                    if (!isPlainObject)
+                    else if (isDataReader || m is IDataRecord)
                     {
-                        members = itemType.GetFields(bindingFlags).Cast<MemberInfo>()
-                             .Concat(itemType.GetProperties(bindingFlags))
-                             .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
-                             .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
-                        accessor = TypeAccessor.Create(itemType);
-                    }
+                        if (!isDataReader)
+                            isDataReader = true;
 
-                    foreach (T m in data)
-                    {
-                        if (isPlainObject)
+                        var record = m as IDataRecord;
+
+                        var fieldCount = record.FieldCount;
+                        if (!hasTitles)
                         {
-                            // In this case data is just IEnumerable<object>, which means we have to determine the runtime type of each element
-                            // This is very inefficient and we prefer type of T to be a concrete class or struct
-                            var type = m.GetType();
-                            if (!memberCache.ContainsKey(type))
-                            {
-                                var _accessor = TypeAccessor.Create(type);
-
-                                var _members = type.GetFields(bindingFlags).Cast<MemberInfo>()
-                                     .Concat(type.GetProperties(bindingFlags))
-                                     .Where(mi => !XLColumnAttribute.IgnoreMember(mi))
-                                     .OrderBy(mi => XLColumnAttribute.GetOrder(mi));
-
-                                memberCache.Add(type, _members);
-                                accessorCache.Add(type, _accessor);
-                            }
-
-                            members = memberCache[type];
-                            accessor = accessorCache[type];
-                        }
-
-                        var co = _columnNumber;
-
-                        if (itemType.IsArray)
-                        {
-                            foreach (var item in (m as Array))
-                            {
-                                Worksheet.SetValue(item, ro, co);
-                                co++;
-                            }
-                        }
-                        else if (isDataTable || m is DataRow)
-                        {
-                            var row = m as DataRow;
-                            if (!isDataTable)
-                                isDataTable = true;
-
-                            if (!hasTitles)
-                            {
-                                foreach (var fieldName in from DataColumn column in row.Table.Columns
-                                                          select String.IsNullOrWhiteSpace(column.Caption)
-                                                                     ? column.ColumnName
-                                                                     : column.Caption)
-                                {
-                                    Worksheet.SetValue(fieldName, fRo, co);
-                                    co++;
-                                }
-
-                                co = _columnNumber;
-                                hasTitles = true;
-                            }
-
-                            foreach (var item in row.ItemArray)
-                            {
-                                Worksheet.SetValue(item, ro, co);
-                                co++;
-                            }
-                        }
-                        else if (isDataReader || m is IDataRecord)
-                        {
-                            if (!isDataReader)
-                                isDataReader = true;
-
-                            var record = m as IDataRecord;
-
-                            var fieldCount = record.FieldCount;
-                            if (!hasTitles)
-                            {
-                                for (var i = 0; i < fieldCount; i++)
-                                {
-                                    Worksheet.SetValue(record.GetName(i), fRo, co);
-                                    co++;
-                                }
-
-                                co = _columnNumber;
-                                hasTitles = true;
-                            }
-
                             for (var i = 0; i < fieldCount; i++)
                             {
-                                Worksheet.SetValue(record[i], ro, co);
-                                co++;
+                                Worksheet.SetValue(record.GetName(i), firstRowNumber, currentColumn);
+                                addFormat(record.GetFieldType(i), currentColumn);
+
+                                currentColumn++;
                             }
+
+                            currentColumn = _columnNumber;
+                            hasTitles = true;
                         }
-                        else
+
+                        for (var i = 0; i < fieldCount; i++)
                         {
-                            if (!hasTitles)
-                            {
-                                foreach (var mi in members)
-                                {
-                                    if (!(mi is IEnumerable))
-                                    {
-                                        var fieldName = XLColumnAttribute.GetHeader(mi);
-                                        if (String.IsNullOrWhiteSpace(fieldName))
-                                            fieldName = mi.Name;
-
-                                        Worksheet.SetValue(fieldName, fRo, co);
-                                    }
-
-                                    co++;
-                                }
-
-                                co = _columnNumber;
-                                hasTitles = true;
-                            }
-
+                            Worksheet.SetValue(record[i], currentRowNumber, currentColumn);
+                            currentColumn++;
+                        }
+                    }
+                    else
+                    {
+                        if (!hasTitles)
+                        {
                             foreach (var mi in members)
                             {
-                                if (mi.MemberType == MemberTypes.Property && (mi as PropertyInfo).GetGetMethod().IsStatic)
-                                    Worksheet.SetValue((mi as PropertyInfo).GetValue(null, null), ro, co);
-                                else if (mi.MemberType == MemberTypes.Field && (mi as FieldInfo).IsStatic)
-                                    Worksheet.SetValue((mi as FieldInfo).GetValue(null), ro, co);
-                                else
-                                    Worksheet.SetValue(accessor[m, mi.Name], ro, co);
+                                if (!(mi is IEnumerable))
+                                {
+                                    var fieldName = XLColumnAttribute.GetHeader(mi);
+                                    if (String.IsNullOrWhiteSpace(fieldName))
+                                        fieldName = mi.Name;
 
-                                co++;
+                                    Worksheet.SetValue(fieldName, firstRowNumber, currentColumn);
+                                    addFormat(accessor.GetMembers().Single(fm => fm.Name == mi.Name).Type, currentColumn);
+                                }
+
+                                currentColumn++;
                             }
+
+                            currentColumn = _columnNumber;
+                            hasTitles = true;
                         }
 
-                        if (co > maxCo)
-                            maxCo = co;
+                        foreach (var mi in members)
+                        {
+                            if (mi.MemberType == MemberTypes.Property && (mi as PropertyInfo).GetGetMethod().IsStatic)
+                                Worksheet.SetValue((mi as PropertyInfo).GetValue(null, null), currentRowNumber, currentColumn);
+                            else if (mi.MemberType == MemberTypes.Field && (mi as FieldInfo).IsStatic)
+                                Worksheet.SetValue((mi as FieldInfo).GetValue(null), currentRowNumber, currentColumn);
+                            else
+                                Worksheet.SetValue(accessor[m, mi.Name], currentRowNumber, currentColumn);
 
-                        ro++;
+                            currentColumn++;
+                        }
                     }
+
+                    if (currentColumn > maximumColumnNumber)
+                        maximumColumnNumber = currentColumn;
+
+                    currentRowNumber++;
                 }
-
-                ClearMerged();
-                var range = Worksheet.Range(
-                    _rowNumber,
-                    _columnNumber,
-                    ro - 1,
-                    maxCo - 1);
-
-                if (createTable)
-                    return tableName == null ? range.CreateTable() : range.CreateTable(tableName);
-                return tableName == null ? range.AsTable() : range.AsTable(tableName);
             }
 
-            return null;
+            ClearMerged();
+            var range = Worksheet.Range(
+                _rowNumber,
+                _columnNumber,
+                currentRowNumber - 1,
+                maximumColumnNumber - 1);
+
+            IXLTable table;
+            if (createTable)
+                table = tableName == null ? range.CreateTable() : range.CreateTable(tableName);
+            else
+                table = tableName == null ? range.AsTable() : range.AsTable(tableName);
+
+            foreach (var f in formats.Where(f1 => f1.Value != null))
+                table.Field(f.Key).Column.Style.NumberFormat = f.Value;
+
+            return table;
         }
 
-        public IXLTable InsertTable(DataTable data)
+        public IXLTable InsertTable(DataTable data, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertTable(data, null, true);
+            return InsertTable(data, null, true, insertDataOptions);
         }
 
-        public IXLTable InsertTable(DataTable data, bool createTable)
+        public IXLTable InsertTable(DataTable data, bool createTable, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertTable(data, null, createTable);
+            return InsertTable(data, null, createTable, insertDataOptions);
         }
 
-        public IXLTable InsertTable(DataTable data, string tableName)
+        public IXLTable InsertTable(DataTable data, string tableName, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertTable(data, tableName, true);
+            return InsertTable(data, tableName, true, insertDataOptions);
         }
 
-        public IXLTable InsertTable(DataTable data, string tableName, bool createTable)
+        public IXLTable InsertTable(DataTable data, string tableName, bool createTable, XLInsertDataOptions insertDataOptions = null)
         {
             if (data == null || data.Columns.Count == 0)
                 return null;
@@ -888,7 +916,9 @@ namespace ClosedXML.Excel
             if (createTable && this.Worksheet.Tables.Any(t => t.Contains(this)))
                 throw new InvalidOperationException(String.Format("This cell '{0}' is already part of a table.", this.Address.ToString()));
 
-            if (data.Rows.Cast<DataRow>().Any()) return InsertTable(data.Rows.Cast<DataRow>(), tableName, createTable);
+            if (data.Rows.Cast<DataRow>().Any())
+                return InsertTable(data.Rows.Cast<DataRow>(), tableName, createTable, insertDataOptions);
+
             var ro = _rowNumber;
             var co = _columnNumber;
 
@@ -921,12 +951,12 @@ namespace ClosedXML.Excel
             return XLTableCellType.Data;
         }
 
-        public IXLRange InsertData(IEnumerable data)
+        public IXLRange InsertData(IEnumerable data, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertData(data, false);
+            return InsertData(data, false, insertDataOptions);
         }
 
-        public IXLRange InsertData(IEnumerable data, Boolean transpose)
+        public IXLRange InsertData(IEnumerable data, Boolean transpose, XLInsertDataOptions insertDataOptions = null)
         {
             if (data != null && !(data is String))
             {
@@ -1064,9 +1094,9 @@ namespace ClosedXML.Excel
             return null;
         }
 
-        public IXLRange InsertData(DataTable dataTable)
+        public IXLRange InsertData(DataTable dataTable, XLInsertDataOptions insertDataOptions = null)
         {
-            return InsertData(dataTable.Rows);
+            return InsertData(dataTable.Rows, insertDataOptions);
         }
 
         public IXLCell SetDataType(XLDataType dataType)

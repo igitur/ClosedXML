@@ -170,94 +170,112 @@ namespace ClosedXML.Excel
         /// Inserts the IEnumerable data elements and returns the range it occupies.
         /// </summary>
         /// <param name="data">The IEnumerable data.</param>
-        IXLRange InsertData(IEnumerable data);
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns></returns>
+        IXLRange InsertData(IEnumerable data, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the IEnumerable data elements and returns the range it occupies.
         /// </summary>
         /// <param name="data">The IEnumerable data.</param>
         /// <param name="transpose">if set to <c>true</c> the data will be transposed before inserting.</param>
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
         /// <returns></returns>
-        IXLRange InsertData(IEnumerable data, Boolean transpose);
+        IXLRange InsertData(IEnumerable data, Boolean transpose, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the data of a data table.
         /// </summary>
         /// <param name="dataTable">The data table.</param>
-        /// <returns>The range occupied by the inserted data</returns>
-        IXLRange InsertData(DataTable dataTable);
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>
+        /// The range occupied by the inserted data
+        /// </returns>
+        IXLRange InsertData(DataTable dataTable, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the IEnumerable data elements as a table and returns it.
         /// <para>The new table will receive a generic name: Table#</para>
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="data">The table data.</param>
-        IXLTable InsertTable<T>(IEnumerable<T> data);
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable<T>(IEnumerable<T> data, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the IEnumerable data elements as a table and returns it.
         /// <para>The new table will receive a generic name: Table#</para>
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="data">The table data.</param>
-        /// <param name="createTable">
-        /// if set to <c>true</c> it will create an Excel table.
-        /// <para>if set to <c>false</c> the table will be created in memory.</para>
-        /// </param>
-        IXLTable InsertTable<T>(IEnumerable<T> data, Boolean createTable);
+        /// <param name="createTable">if set to <c>true</c> it will create an Excel table.
+        /// <para>if set to <c>false</c> the table will be created in memory.</para></param>
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable<T>(IEnumerable<T> data, Boolean createTable, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Creates an Excel table from the given IEnumerable data elements.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="data">The table data.</param>
         /// <param name="tableName">Name of the table.</param>
-        IXLTable InsertTable<T>(IEnumerable<T> data, String tableName);
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable<T>(IEnumerable<T> data, String tableName, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the IEnumerable data elements as a table and returns it.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="data">The table data.</param>
         /// <param name="tableName">Name of the table.</param>
-        /// <param name="createTable">
-        /// if set to <c>true</c> it will create an Excel table.
-        /// <para>if set to <c>false</c> the table will be created in memory.</para>
-        /// </param>
-        IXLTable InsertTable<T>(IEnumerable<T> data, String tableName, Boolean createTable);
+        /// <param name="createTable">if set to <c>true</c> it will create an Excel table.
+        /// <para>if set to <c>false</c> the table will be created in memory.</para></param>
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable<T>(IEnumerable<T> data, String tableName, Boolean createTable, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the DataTable data elements as a table and returns it.
         /// <para>The new table will receive a generic name: Table#</para>
         /// </summary>
         /// <param name="data">The table data.</param>
-        IXLTable InsertTable(DataTable data);
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable(DataTable data, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the DataTable data elements as a table and returns it.
         /// <para>The new table will receive a generic name: Table#</para>
         /// </summary>
         /// <param name="data">The table data.</param>
-        /// <param name="createTable">
-        /// if set to <c>true</c> it will create an Excel table.
-        /// <para>if set to <c>false</c> the table will be created in memory.</para>
-        /// </param>
-        IXLTable InsertTable(DataTable data, Boolean createTable);
+        /// <param name="createTable">if set to <c>true</c> it will create an Excel table.
+        /// <para>if set to <c>false</c> the table will be created in memory.</para></param>
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable(DataTable data, Boolean createTable, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Creates an Excel table from the given DataTable data elements.
         /// </summary>
         /// <param name="data">The table data.</param>
         /// <param name="tableName">Name of the table.</param>
-        IXLTable InsertTable(DataTable data, String tableName);
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable(DataTable data, String tableName, XLInsertDataOptions insertDataOptions = null);
 
         /// <summary>
         /// Inserts the DataTable data elements as a table and returns it.
         /// </summary>
         /// <param name="data">The table data.</param>
         /// <param name="tableName">Name of the table.</param>
-        /// <param name="createTable">
-        /// if set to <c>true</c> it will create an Excel table.
-        /// <para>if set to <c>false</c> the table will be created in memory.</para>
-        /// </param>
-        IXLTable InsertTable(DataTable data, String tableName, Boolean createTable);
+        /// <param name="createTable">if set to <c>true</c> it will create an Excel table.
+        /// <para>if set to <c>false</c> the table will be created in memory.</para></param>
+        /// <param name="insertDataOptions">Optional parameter to specify the number formats of the columns.</param>
+        /// <returns>The table that was created</returns>
+        IXLTable InsertTable(DataTable data, String tableName, Boolean createTable, XLInsertDataOptions insertDataOptions = null);
 
         XLTableCellType TableCellType();
 
