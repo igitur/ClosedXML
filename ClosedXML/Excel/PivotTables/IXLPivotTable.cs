@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace ClosedXML.Excel
 {
@@ -114,10 +113,7 @@ namespace ClosedXML.Excel
 
         IXLPivotTable SetPrintTitles(); IXLPivotTable SetPrintTitles(Boolean value);
 
-
         IXLPivotTable SetEnableShowDetails(); IXLPivotTable SetEnableShowDetails(Boolean value);
-
-
 
         IXLPivotTable SetEnableCellEditing(); IXLPivotTable SetEnableCellEditing(Boolean value);
 

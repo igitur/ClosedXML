@@ -23,8 +23,17 @@ namespace ClosedXML.Excel
 
         public IXLPivotValue Add(String sourceName, String customName)
         {
-            if (sourceName != XLConstants.PivotTableValuesSentinalLabel && !this._pivotTable.Source.SourceRangeFields.Contains(sourceName))
+            if (sourceName != XLConstants.PivotTableValuesSentinalLabel
+                && !this._pivotTable.Source.CachedFields.ContainsKey(sourceName)
+                && !this._pivotTable.Source.CalculatedFields.Contains(sourceName))
                 throw new ArgumentOutOfRangeException(nameof(sourceName), String.Format("The column '{0}' does not appear in the source range.", sourceName));
+
+            // This is a calculated field. The custom name can't equal the source name of anything else
+            if (_pivotTable.Source.CalculatedFields.Contains(sourceName)
+                && customName.Equals(sourceName, StringComparison.Ordinal))
+            {
+                throw new ArgumentOutOfRangeException(nameof(customName), String.Format("Choose a unique pivot table custom name for the calculated field '{0}'. Example: 'Sum of {0}'", sourceName));
+            }
 
             var pivotValue = new XLPivotValue(sourceName) { CustomName = customName };
             _pivotValues.Add(customName, pivotValue);

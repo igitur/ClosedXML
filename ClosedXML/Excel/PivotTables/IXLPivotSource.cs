@@ -6,6 +6,7 @@ namespace ClosedXML.Excel
     public interface IXLPivotSource
     {
         IDictionary<String, IList<Object>> CachedFields { get; }
+        IXLPivotSourceCalculatedFields CalculatedFields { get; }
         XLItemsToRetain ItemsToRetainPerField { get; set; }
         IXLPivotSourceReference PivotSourceReference { get; }
         Boolean RefreshDataOnOpen { get; set; }

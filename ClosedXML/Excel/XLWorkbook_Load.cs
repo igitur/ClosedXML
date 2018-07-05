@@ -515,10 +515,19 @@ namespace ClosedXML.Excel
                     {
                         foreach (var cf in pivotTableCacheDefinitionPart.PivotCacheDefinition.CacheFields.Elements<CacheField>())
                         {
-                            var fieldName = cf.Name.Value;
+                            var fieldName = cf.Name?.Value;
+                            if (fieldName == null)
+                                continue;
+
                             if (pivotSource.CachedFields.ContainsKey(fieldName))
                             {
                                 // We don't allow duplicate field names... but what do we do if we find one? Let's just skip it.
+                                continue;
+                            }
+
+                            if (cf.Formula?.Value != null)
+                            {
+                                pivotSource.CalculatedFields.Add(fieldName, cf.Formula.Value);
                                 continue;
                             }
 
@@ -810,12 +819,20 @@ namespace ClosedXML.Excel
                                         if (!(pivotTableDefinition.PivotFields.ElementAt((int)df.Field.Value) is PivotField pf))
                                             continue;
 
-                                        var cacheFieldName = pivotSource.CachedFields.Keys.ElementAt((int)df.Field.Value);
+                                        string fieldName = "";
+                                        if (df.Field.Value < pivotSource.CachedFields.Count)
+                                        {
+                                            fieldName = pivotSource.CachedFields.Keys.ElementAt((int)df.Field.Value);
+                                        }
+                                        else if (df.Field.Value < pivotSource.CachedFields.Count + pivotSource.CalculatedFields.Count())
+                                        {
+                                            fieldName = pivotSource.CalculatedFields.ElementAt((int)(df.Field.Value - pivotSource.CachedFields.Count)).Name;
+                                        }
 
                                         if (pf.Name != null)
                                             pivotValue = pt.Values.Add(pf.Name.Value, df.Name.Value);
                                         else
-                                            pivotValue = pt.Values.Add(cacheFieldName, df.Name.Value);
+                                            pivotValue = pt.Values.Add(fieldName, df.Name.Value);
 
                                         if (df.NumberFormatId != null) pivotValue.NumberFormat.SetNumberFormatId((int)df.NumberFormatId.Value);
                                         if (df.Subtotal != null) pivotValue = pivotValue.SetSummaryFormula(df.Subtotal.Value.ToClosedXml());

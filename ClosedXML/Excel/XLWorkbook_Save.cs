@@ -2385,10 +2385,18 @@ namespace ClosedXML.Excel
                         sharedItems.ContainsSemiMixedTypes = OpenXmlHelper.GetBooleanValue(true);
                         sharedItems.AppendChild(new MissingItem());
                     }
-
                 }
                 pivotSourceInfo.Fields.Add(columnName, ptfi);
-                 
+            }
+
+            foreach (var cf in pivotSource.CalculatedFields)
+            {
+                cacheFields.AppendChild(new CacheField
+                {
+                    Name = cf.Name,
+                    Formula = cf.Formula,
+                    DatabaseField = false
+                });
             }
 
             // End CacheFields
@@ -2507,7 +2515,7 @@ namespace ClosedXML.Excel
             var rowItems = new RowItems();
             var columnItems = new ColumnItems();
             var pageFields = new PageFields { Count = (uint)pt.ReportFilters.Count() };
-            var pivotFields = new PivotFields { Count = Convert.ToUInt32(pt.Source.CachedFields.Count) };
+            var pivotFields = new PivotFields();
 
             var orderedPageFields = new SortedDictionary<int, PageField>();
             var orderedColumnLabels = new SortedDictionary<int, Field>();
@@ -2869,7 +2877,30 @@ namespace ClosedXML.Excel
                 pivotFields.AppendChild(pf);
             }
 
+            foreach (var cf in pivotSource.CalculatedFields)
+            {
+                var pf = new PivotField
+                {
+                    IncludeNewItemsInFilter = true,
+                    Compact = BooleanValue.FromBoolean(false),
+                    Outline = BooleanValue.FromBoolean(false),
+                    DragToRow = BooleanValue.FromBoolean(false),
+                    DragToColumn = BooleanValue.FromBoolean(false),
+                    DragToPage = BooleanValue.FromBoolean(false),
+                    ShowAll = BooleanValue.FromBoolean(false),
+                    DefaultSubtotal = BooleanValue.FromBoolean(false)
+                };
+
+                if (pt.Values.ContainsSourceField(cf.Name))
+                    pf.DataField = true;
+
+                pivotFields.AppendChild(pf);
+            }
             pivotTableDefinition.AppendChild(location);
+
+            if (pivotFields.Any())
+                pivotFields.Count = Convert.ToUInt32(pivotFields.Count());
+
             pivotTableDefinition.AppendChild(pivotFields);
 
             if (pt.RowLabels.Any())
@@ -2923,27 +2954,37 @@ namespace ClosedXML.Excel
             var dataFields = new DataFields();
             foreach (var valueField in pt.Values)
             {
-                if (!pt.Source.CachedFields.TryGetValue(valueField.SourceName, out IList<Object> values))
-                    continue;
-
-                //var sourceColumn =
-                //    pt.Source.CachedFields.Columns().FirstOrDefault(c => c.Cell(1).Value.ToInvariantString() == value.SourceName);
-                //if (sourceColumn == null) continue;
-
                 UInt32 numberFormatId = 0;
                 if (valueField.NumberFormat.NumberFormatId != -1 || context.SharedNumberFormats.ContainsKey(valueField.NumberFormat.NumberFormatId))
                     numberFormatId = (UInt32)valueField.NumberFormat.NumberFormatId;
                 else if (context.SharedNumberFormats.Any(snf => snf.Value.NumberFormat.Format == valueField.NumberFormat.Format))
                     numberFormatId = (UInt32)context.SharedNumberFormats.First(snf => snf.Value.NumberFormat.Format == valueField.NumberFormat.Format).Key;
 
-                var df = new DataField
+                DataField df;
+                if (pivotSource.CalculatedFields.TryGetCalculatedField(valueField.SourceName, out IXLPivotSourceCalculatedField calculatedField))
                 {
-                    Name = valueField.CustomName,
-                    Field = (UInt32)pt.Source.CachedFields.Keys.ToList().IndexOf(valueField.SourceName),
-                    Subtotal = valueField.SummaryFormula.ToOpenXml(),
-                    ShowDataAs = valueField.Calculation.ToOpenXml(),
-                    NumberFormatId = numberFormatId
-                };
+                    df = new DataField
+                    {
+                        Name = valueField.CustomName,
+                        Field = Convert.ToUInt32(pivotSource.CachedFields.Count + pivotSource.CalculatedFields.ToList().IndexOf(calculatedField)),
+                    };
+                }
+                else if (pivotSource.CachedFields.ContainsKey(valueField.SourceName))
+                {
+                    df = new DataField
+                    {
+                        Name = valueField.CustomName,
+                        Field = (UInt32)pivotSource.CachedFields.Keys.ToList().IndexOf(valueField.SourceName),
+                        Subtotal = valueField.SummaryFormula.ToOpenXml(),
+                        ShowDataAs = valueField.Calculation.ToOpenXml(),
+                        NumberFormatId = numberFormatId
+                    };
+                }
+                else
+                    continue;
+
+                if (numberFormatId > 0)
+                    df.NumberFormatId = numberFormatId;
 
                 if (!String.IsNullOrEmpty(valueField.BaseFieldName)
                     && pt.Source.CachedFields.TryGetValue(valueField.BaseFieldName, out IList<Object> baseFieldValues))

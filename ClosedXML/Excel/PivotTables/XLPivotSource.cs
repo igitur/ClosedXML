@@ -21,11 +21,13 @@ namespace ClosedXML.Excel
         private XLPivotSource()
         {
             this.Guid = Guid.NewGuid();
+            CalculatedFields = new XLPivotSourceCalculatedFields(this);
             CachedFields = new Dictionary<String, IList<Object>>(StringComparer.OrdinalIgnoreCase);
             SetExcelDefaults();
         }
 
         public IDictionary<String, IList<Object>> CachedFields { get; internal set; }
+        public IXLPivotSourceCalculatedFields CalculatedFields { get; private set; }
         public Guid Guid { get; private set; }
         public XLItemsToRetain ItemsToRetainPerField { get; set; }
 
