@@ -715,7 +715,7 @@ namespace ClosedXML_Tests
         }
 
         [Test]
-        public void PivotValueGet()
+        public void PivotValuesGet()
         {
             using (var ms = new MemoryStream())
             {
@@ -738,7 +738,7 @@ namespace ClosedXML_Tests
         }
 
         [Test]
-        public void TryGetValue()
+        public void PivotValuesTryGetValue()
         {
             using (var ms = new MemoryStream())
             {
@@ -758,7 +758,7 @@ namespace ClosedXML_Tests
         }
 
         [Test]
-        public void IndexOf()
+        public void PivotValuesIndexOf()
         {
             using (var ms = new MemoryStream())
             {
@@ -772,6 +772,24 @@ namespace ClosedXML_Tests
                     Assert.AreEqual(1, pt.Values.IndexOf("Sum of Quality"));
                     Assert.AreEqual(1, pt.Values.IndexOf("sum of quality")); // case insensitive
                     Assert.Throws<ArgumentException>(() => pt.Values.IndexOf("dummy"));
+                }
+            }
+        }
+
+        [Test]
+        public void PivotValuesContainsSourceField()
+        {
+            using (var ms = new MemoryStream())
+            {
+                using (var stream = TestHelper.GetStreamFromResource(TestHelper.GetResourcePath(@"Examples\PivotTables\PivotTables.xlsx")))
+                using (var wb = new XLWorkbook(stream))
+                {
+                    var ws = wb.Worksheet("pvt2");
+                    var pt = ws.PivotTables.First();
+
+                    Assert.IsTrue(pt.Values.ContainsSourceField("Quality"));
+                    Assert.IsTrue(pt.Values.ContainsSourceField("quality"));
+                    Assert.IsFalse(pt.Values.ContainsSourceField("dummy"));
                 }
             }
         }
