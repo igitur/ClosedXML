@@ -7,7 +7,6 @@ namespace ClosedXML.Excel
     {
         XLPivotTableTheme Theme { get; set; }
 
-        IXLPivotFields Fields { get; }
         IXLPivotFields ReportFilters { get; }
         IXLPivotFields ColumnLabels { get; }
         IXLPivotFields RowLabels { get; }
@@ -22,11 +21,7 @@ namespace ClosedXML.Excel
 
         IXLCell TargetCell { get; set; }
 
-        IXLRange SourceRange { get; set; }
-        IXLTable SourceTable { get; set; }
-        XLPivotTableSourceType SourceType { get; }
-
-        IEnumerable<String> SourceRangeFieldsAvailable { get; }
+        IXLPivotSource Source { get; set; }
 
         Boolean MergeAndCenterWithLabels { get; set; } // MergeItem
         Int32 RowLabelIndent { get; set; } // Indent
@@ -58,10 +53,7 @@ namespace ClosedXML.Excel
         Boolean RepeatRowLabels { get; set; }
         Boolean PrintTitles { get; set; }
 
-        Boolean SaveSourceData { get; set; }
         Boolean EnableShowDetails { get; set; }
-        Boolean RefreshDataOnOpen { get; set; }
-        XLItemsToRetain ItemsToRetainPerField { get; set; }
         Boolean EnableCellEditing { get; set; }
 
         IXLPivotTable SetName(String value);
@@ -122,13 +114,10 @@ namespace ClosedXML.Excel
 
         IXLPivotTable SetPrintTitles(); IXLPivotTable SetPrintTitles(Boolean value);
 
-        IXLPivotTable SetSaveSourceData(); IXLPivotTable SetSaveSourceData(Boolean value);
 
         IXLPivotTable SetEnableShowDetails(); IXLPivotTable SetEnableShowDetails(Boolean value);
 
-        IXLPivotTable SetRefreshDataOnOpen(); IXLPivotTable SetRefreshDataOnOpen(Boolean value);
 
-        IXLPivotTable SetItemsToRetainPerField(XLItemsToRetain value);
 
         IXLPivotTable SetEnableCellEditing(); IXLPivotTable SetEnableCellEditing(Boolean value);
 
