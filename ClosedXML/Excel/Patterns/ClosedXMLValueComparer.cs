@@ -68,7 +68,21 @@ namespace ClosedXML.Excel.Patterns
             if (obj is null)
                 return 0;
 
-            return obj.GetHashCode();
+            switch (obj)
+            {
+                case DateTime dt:
+                    return dt.ToOADate().GetHashCode();
+                case Double dbl:
+                    return dbl.GetHashCode();
+                case TimeSpan ts:
+                    return ts.TotalDays.GetHashCode();
+                case Boolean b:
+                    return (b ? 1d : 0d).GetHashCode();
+                case String s:
+                    return StringComparer.OrdinalIgnoreCase.GetHashCode(s);
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         private int CompareWithCoersion(IComparable c1, IComparable c2)
