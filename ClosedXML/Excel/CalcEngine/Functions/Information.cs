@@ -1,4 +1,3 @@
-using ClosedXML.Excel.CalcEngine.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -16,7 +15,7 @@ namespace ClosedXML.Excel.CalcEngine.Functions
             ce.RegisterFunction("ISERROR", 1, int.MaxValue, IsError);
             ce.RegisterFunction("ISEVEN", 1, IsEven);
             ce.RegisterFunction("ISLOGICAL", 1, int.MaxValue, IsLogical);
-            ce.RegisterFunction("ISNA", 1, int.MaxValue, IsNa);
+            ce.RegisterFunction("ISNA", 1, int.MaxValue, IsNa, evaluateParameters: false);
             ce.RegisterFunction("ISNONTEXT", 1, int.MaxValue, IsNonText);
             ce.RegisterFunction("ISNUMBER", 1, int.MaxValue, IsNumber);
             ce.RegisterFunction("ISODD", 1, IsOdd);
@@ -27,25 +26,25 @@ namespace ClosedXML.Excel.CalcEngine.Functions
             ce.RegisterFunction("TYPE", 1, Type);
         }
 
-        private static IDictionary<ErrorExpression.ExpressionErrorType, int> errorTypes = new Dictionary<ErrorExpression.ExpressionErrorType, int>()
+        private static readonly IDictionary<XLCalculationErrorType, int> errorTypes = new Dictionary<XLCalculationErrorType, int>()
         {
-            [ErrorExpression.ExpressionErrorType.NullValue] = 1,
-            [ErrorExpression.ExpressionErrorType.DivisionByZero] = 2,
-            [ErrorExpression.ExpressionErrorType.CellValue] = 3,
-            [ErrorExpression.ExpressionErrorType.CellReference] = 4,
-            [ErrorExpression.ExpressionErrorType.NameNotRecognized] = 5,
-            [ErrorExpression.ExpressionErrorType.NumberInvalid] = 6,
-            [ErrorExpression.ExpressionErrorType.NoValueAvailable] = 7
+            [XLCalculationErrorType.NullValue] = 1,
+            [XLCalculationErrorType.DivisionByZero] = 2,
+            [XLCalculationErrorType.CellValue] = 3,
+            [XLCalculationErrorType.CellReference] = 4,
+            [XLCalculationErrorType.NameNotRecognized] = 5,
+            [XLCalculationErrorType.NumberInvalid] = 6,
+            [XLCalculationErrorType.NoValueAvailable] = 7
         };
 
         private static object ErrorType(List<Expression> p)
         {
             var v = p[0].Evaluate();
 
-            if (v is ErrorExpression.ExpressionErrorType)
-                return errorTypes[(ErrorExpression.ExpressionErrorType)v];
+            if (v is XLCalculationErrorType eet)
+                return errorTypes[eet];
             else
-                throw new NoValueAvailableException();
+                return XLCalculationErrorType.NoValueAvailable;
         }
 
         private static object IsBlank(List<Expression> p)
@@ -66,15 +65,15 @@ namespace ClosedXML.Excel.CalcEngine.Functions
         {
             var v = p[0].Evaluate();
 
-            return v is ErrorExpression.ExpressionErrorType
-                && ((ErrorExpression.ExpressionErrorType)v) != ErrorExpression.ExpressionErrorType.NoValueAvailable;
+            return v is XLCalculationErrorType eet
+                && eet != XLCalculationErrorType.NoValueAvailable;
         }
 
         private static object IsError(List<Expression> p)
         {
             var v = p[0].Evaluate();
 
-            return v is ErrorExpression.ExpressionErrorType;
+            return v is XLCalculationErrorType;
         }
 
         private static object IsEven(List<Expression> p)
@@ -106,8 +105,8 @@ namespace ClosedXML.Excel.CalcEngine.Functions
         {
             var v = p[0].Evaluate();
 
-            return v is ErrorExpression.ExpressionErrorType
-                && ((ErrorExpression.ExpressionErrorType)v) == ErrorExpression.ExpressionErrorType.NoValueAvailable;
+            return v is XLCalculationErrorType eet
+                && eet == XLCalculationErrorType.NoValueAvailable;
         }
 
         private static object IsNonText(List<Expression> p)
@@ -185,7 +184,7 @@ namespace ClosedXML.Excel.CalcEngine.Functions
 
         private static object NA(List<Expression> p)
         {
-            return ErrorExpression.ExpressionErrorType.NoValueAvailable;
+            return XLCalculationErrorType.NoValueAvailable;
         }
 
         private static object Type(List<Expression> p)
