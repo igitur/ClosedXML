@@ -55,6 +55,7 @@ build:
 artifacts:
   - path: ClosedXML/bin/%CONFIGURATION%/*/ClosedXML.dll
   - path: ClosedXML/bin/%CONFIGURATION%/*.nupkg
+  - path: ClosedXML/bin/%CONFIGURATION%/*.snupkg
 
 nuget:
   project_feed: true
