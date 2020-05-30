@@ -20,6 +20,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Configurations>Debug;Release;Release.Signed</Configurations>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <ContinuousIntegrationBuild Condition="'$(APPVEYOR)'=='True'">true</ContinuousIntegrationBuild>
+    <DeterministicSourcePaths Condition="'$(APPVEYOR)'=='True'">true</DeterministicSourcePaths>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release.Signed'">
