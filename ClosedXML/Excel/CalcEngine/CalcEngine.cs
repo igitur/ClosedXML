@@ -346,7 +346,7 @@ namespace ClosedXML.Excel.CalcEngine
                 var t = _token;
                 GetToken();
                 var exprArg = ParseAddSub();
-                x = new BinaryExpression(t, x, exprArg);
+                x = new BinaryExpression(t, x, exprArg, CoercionConvention.CaseInsensitive);
             }
             return x;
         }
