@@ -77,6 +77,7 @@ namespace ClosedXML_Tests.Excel.CalcEngine
                 Assert.AreEqual(true, actual);
             }
         }
+
         #endregion IsBlank Tests
 
         #region IsEven Tests
@@ -156,6 +157,7 @@ namespace ClosedXML_Tests.Excel.CalcEngine
                 Assert.AreEqual(true, actual);
             }
         }
+
         #endregion IsLogical Tests
 
         [Test]
@@ -210,6 +212,7 @@ namespace ClosedXML_Tests.Excel.CalcEngine
                 Assert.AreEqual(true, actual);
             }
         }
+
         #endregion IsNotText Tests
 
         #region IsNumber Tests
@@ -254,6 +257,7 @@ namespace ClosedXML_Tests.Excel.CalcEngine
                 Assert.AreEqual(true, actual);
             }
         }
+
         #endregion IsNumber Tests
 
         #region IsOdd Test
@@ -297,6 +301,7 @@ namespace ClosedXML_Tests.Excel.CalcEngine
                 Assert.AreEqual(true, actual);
             }
         }
+
         #endregion IsOdd Test
 
         [Test]
@@ -366,6 +371,7 @@ namespace ClosedXML_Tests.Excel.CalcEngine
                 Assert.AreEqual(true, actual);
             }
         }
+
         #endregion IsText Tests
 
         #region N Tests
@@ -383,54 +389,18 @@ namespace ClosedXML_Tests.Excel.CalcEngine
             }
         }
 
-        [Test]
-        public void N_False_Zero()
+        [TestCase(false, ExpectedResult = 0)]
+        [TestCase(true, ExpectedResult = 1)]
+        [TestCase(123, ExpectedResult = 123)]
+        [TestCase("asd", ExpectedResult = 0)]
+        [TestCase("5.8", ExpectedResult = 5.8)]
+        public double N(object input)
         {
-            using (var wb = new XLWorkbook())
-            {
-                var ws = wb.AddWorksheet("Sheet");
-                ws.Cell("A1").Value = false;
-                var actual = ws.Evaluate("=N(A1)");
-                Assert.AreEqual(0, actual);
-            }
+            var ws = new XLWorkbook().AddWorksheet();
+            ws.FirstCell().Value = input;
+            return (double)ws.Evaluate("=N(A1)");
         }
 
-        [Test]
-        public void N_Number_Number()
-        {
-            using (var wb = new XLWorkbook())
-            {
-                var ws = wb.AddWorksheet("Sheet");
-                var testedValue = 123;
-                ws.Cell("A1").Value = testedValue;
-                var actual = ws.Evaluate("=N(A1)");
-                Assert.AreEqual(testedValue, actual);
-            }
-        }
-
-        [Test]
-        public void N_String_Zero()
-        {
-            using (var wb = new XLWorkbook())
-            {
-                var ws = wb.AddWorksheet("Sheet");
-                ws.Cell("A1").Value = "asd";
-                var actual = ws.Evaluate("=N(A1)");
-                Assert.AreEqual(0, actual);
-            }
-        }
-
-        [Test]
-        public void N_True_One()
-        {
-            using (var wb = new XLWorkbook())
-            {
-                var ws = wb.AddWorksheet("Sheet");
-                ws.Cell("A1").Value = true;
-                var actual = ws.Evaluate("=N(A1)");
-                Assert.AreEqual(1, actual);
-            }
-        }
         #endregion N Tests
     }
 }
