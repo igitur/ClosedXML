@@ -165,6 +165,16 @@ namespace ClosedXML.Excel.CalcEngine
 
             int numberOfCriteria = p.Count / 2;
 
+            var firstCriterionDimensions = CalcEngineHelpers.GetRangeDimensions(p[0] as XObjectExpression);
+            for (int criteriaPair = 1; criteriaPair < numberOfCriteria; criteriaPair++)
+            {
+                var thisCriterionDimensions = CalcEngineHelpers.GetRangeDimensions(p[criteriaPair * 2] as XObjectExpression);
+                if (thisCriterionDimensions != firstCriterionDimensions)
+                {
+                    return XLError.IncompatibleValue;
+                }
+            }
+
             long totalCount = 0;
             // prepare criteria-parameters:
             var criteriaRanges = new Tuple<object, List<object>>[numberOfCriteria];

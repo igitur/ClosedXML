@@ -117,6 +117,25 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             Assert.AreEqual(expectedResult, value);
         }
 
+        [TestCase(6, "COUNTIF(A:B, \"A*\")")]
+        [TestCase(6, "COUNTIF(A1:B6, \"A*\")")]
+        public void CountIf_InputRangeHasMultipleColumns(int expectedOutcome, string formula)
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("Data");
+            var data = new object[]
+            {
+                    new { Id = "AA", Id2 = "BA", Value = 2},
+                    new { Id = "AB", Id2 = "BB", Value = 3},
+                    new { Id = "BA", Id2 = "AA", Value = 2},
+                    new { Id = "BB", Id2 = "AB", Value = 1},
+                    new { Id = "AC", Id2 = "AC", Value = 4},
+            };
+            ws.Cell("A1").InsertTable(data);
+
+            Assert.AreEqual(expectedOutcome, ws.Evaluate(formula));
+        }
+
         [TestCase(@"=COUNTIF(A1:A10, 1)", 1)]
         [TestCase(@"=COUNTIF(A1:A10, 2.0)", 1)]
         [TestCase(@"=COUNTIF(A1:A10, ""3"")", 2)]
@@ -160,6 +179,22 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             }
         }
 
+        [Test]
+        public void CountIfs_MultidimensionalRanges()
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet();
+            ws.FirstCell().InsertData(new object[]
+            {
+                (10, 10, 1, 2),
+                (20, 15, 2, 4),
+                (30, 20, 3, 6),
+                (40, 25, 4, 8),
+                (50, 30, 5, 10),
+            });
+            Assert.AreEqual(5, ws.Evaluate("COUNTIFS(A1:B5,\">20\")"));
+        }
+
         [TestCase("=COUNTIFS(B1:D1, \"=Yes\")", 1)]
         [TestCase("=COUNTIFS(B1:B4, \"=Yes\", C1:C4, \"=Yes\")", 2)]
         [TestCase("= COUNTIFS(B4:D4, \"=Yes\", B2:D2, \"=Yes\")", 1)]
@@ -195,6 +230,16 @@ namespace ClosedXML.Tests.Excel.CalcEngine
 
                 Assert.AreEqual(expectedOutcome, ws.Evaluate(formula));
             }
+        }
+
+        [TestCase("COUNTIFS(A1:B5,\"A*\",C1:C5,\">2\")")]
+        [TestCase("COUNTIFS(A1:B3,1,D1:F2,2)")]
+        [TestCase("COUNTIFS(A:B,\"A*\",C:C,\">2\")")]
+        public void CountIfs_ReturnsErrorWhenRangeDimensionsAreNotSame(string formula)
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet();
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Evaluate(formula));
         }
 
         [Test]
