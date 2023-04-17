@@ -1,10 +1,10 @@
 // Keep this file CodeMaid organised and cleaned
 using ClosedXML.Excel;
 using ClosedXML.Excel.CalcEngine;
+using ClosedXML.Excel.CalcEngine.Exceptions;
 using NUnit.Framework;
 using System;
 using System.Linq;
-using ClosedXML.Excel.CalcEngine.Exceptions;
 
 namespace ClosedXML.Tests.Excel.CalcEngine
 {
@@ -228,10 +228,60 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             Assert.AreEqual(expectedResult, value);
         }
 
+        [TestCase(@"H3:H45", ExpectedResult = 94145.5271162791)]
+        [TestCase(@"H:H", ExpectedResult = 94145.5271162791)]
+        [TestCase(@"Data!H:H", ExpectedResult = 94145.5271162791)]
+        [TestCase(@"H3:H10", ExpectedResult = 411.5)]
+        [TestCase(@"H3:H20", ExpectedResult = 13604.2067611111)]
+        [TestCase(@"H3:H30", ExpectedResult = 14231.0694)]
+        [TestCase(@"H3:H3", ExpectedResult = 0)]
+        [TestCase(@"H10:H20", ExpectedResult = 12713.7600909091)]
+        [TestCase(@"H15:H20", ExpectedResult = 10827.2200833333)]
+        [TestCase(@"H20:H30", ExpectedResult = 477.132272727273)]
+        [DefaultFloatingPointTolerance(1e-10)]
+        public double DevSq(string sourceValue)
+        {
+            return (double)workbook.Worksheets.First().Evaluate($"=DEVSQ({sourceValue})");
+        }
+
+        [TestCase("D3:D45", ExpectedResult = XLError.IncompatibleValue)]
+        public XLError Devsq_IncorrectCases(string sourceValue)
+        {
+            var ws = workbook.Worksheets.First();
+
+            return (XLError)ws.Evaluate($"DEVSQ({sourceValue})");
+        }
+
         [OneTimeTearDown]
         public void Dispose()
         {
             workbook.Dispose();
+        }
+
+        [TestCase(0, ExpectedResult = 0)]
+        [TestCase(0.2, ExpectedResult = 0.202732554054082)]
+        [TestCase(0.25, ExpectedResult = 0.255412811882995)]
+        [TestCase(0.3296001056, ExpectedResult = 0.342379555936801)]
+        [TestCase(-0.36, ExpectedResult = -0.37688590118819)]
+        [TestCase(-0.000003, ExpectedResult = -0.00000299999999998981)]
+        [TestCase(-0.063453535345348, ExpectedResult = -0.0635389037459617)]
+        [TestCase(0.559015883901589171354964, ExpectedResult = 0.631400600322212)]
+        [TestCase(0.2691496, ExpectedResult = 0.275946780611959)]
+        [TestCase(-0.10674142, ExpectedResult = -0.107149608461448)]
+        [DefaultFloatingPointTolerance(1e-12)]
+        public double Fisher(double sourceValue)
+        {
+            return (double)XLWorkbook.EvaluateExpr($"FISHER({sourceValue})");
+        }
+
+        // TODO : the string case will be treated correctly when Coercion is implemented better
+        //[TestCase("asdf", ExpectedResult = XLError.IncompatibleValue)]
+        [TestCase("5", ExpectedResult = XLError.NumberInvalid)]
+        [TestCase("-1", ExpectedResult = XLError.NumberInvalid)]
+        [TestCase("1", ExpectedResult = XLError.NumberInvalid)]
+        public XLError Fisher_IncorrectCases(string sourceValue)
+        {
+            return (XLError)XLWorkbook.EvaluateExpr($"FISHER({sourceValue})");
         }
 
         [TestCase(@"H3:H45", ExpectedResult = 7.51126069234216)]
@@ -265,56 +315,6 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             // Make sure tests run on a deterministic culture
             System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-US");
             workbook = SetupWorkbook();
-        }
-
-        [TestCase(@"H3:H45", ExpectedResult = 94145.5271162791)]
-        [TestCase(@"H:H", ExpectedResult = 94145.5271162791)]
-        [TestCase(@"Data!H:H", ExpectedResult = 94145.5271162791)]
-        [TestCase(@"H3:H10", ExpectedResult = 411.5)]
-        [TestCase(@"H3:H20", ExpectedResult = 13604.2067611111)]
-        [TestCase(@"H3:H30", ExpectedResult = 14231.0694)]
-        [TestCase(@"H3:H3", ExpectedResult = 0)]
-        [TestCase(@"H10:H20", ExpectedResult = 12713.7600909091)]
-        [TestCase(@"H15:H20", ExpectedResult = 10827.2200833333)]
-        [TestCase(@"H20:H30", ExpectedResult = 477.132272727273)]
-        [DefaultFloatingPointTolerance(1e-10)]
-        public double DevSq(string sourceValue)
-        {
-            return (double)workbook.Worksheets.First().Evaluate($"=DEVSQ({sourceValue})");
-        }
-
-        [TestCase("D3:D45", ExpectedResult = XLError.IncompatibleValue)]
-        public XLError Devsq_IncorrectCases(string sourceValue)
-        {
-            var ws = workbook.Worksheets.First();
-
-            return (XLError)ws.Evaluate($"DEVSQ({sourceValue})");
-        }
-
-        [TestCase(0, ExpectedResult = 0)]
-        [TestCase(0.2, ExpectedResult = 0.202732554054082)]
-        [TestCase(0.25, ExpectedResult = 0.255412811882995)]
-        [TestCase(0.3296001056, ExpectedResult = 0.342379555936801)]
-        [TestCase(-0.36, ExpectedResult = -0.37688590118819)]
-        [TestCase(-0.000003, ExpectedResult = -0.00000299999999998981)]
-        [TestCase(-0.063453535345348, ExpectedResult = -0.0635389037459617)]
-        [TestCase(0.559015883901589171354964, ExpectedResult = 0.631400600322212)]
-        [TestCase(0.2691496, ExpectedResult = 0.275946780611959)]
-        [TestCase(-0.10674142, ExpectedResult = -0.107149608461448)]
-        [DefaultFloatingPointTolerance(1e-12)]
-        public double Fisher(double sourceValue)
-        {
-            return (double)XLWorkbook.EvaluateExpr($"FISHER({sourceValue})");
-        }
-
-        // TODO : the string case will be treated correctly when Coercion is implemented better
-        //[TestCase("asdf", ExpectedResult = XLError.IncompatibleValue)]
-        [TestCase("5", ExpectedResult = XLError.NumberInvalid)]
-        [TestCase("-1", ExpectedResult = XLError.NumberInvalid)]
-        [TestCase("1", ExpectedResult = XLError.NumberInvalid)]
-        public XLError Fisher_IncorrectCases(string sourceValue)
-        {
-            return (XLError)XLWorkbook.EvaluateExpr($"FISHER({sourceValue})");
         }
 
         [Test]
@@ -525,6 +525,7 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             value = (double)workbook.Evaluate(@"=VARP(Data!H:H)");
             Assert.AreEqual(2189.430863, value, tolerance);
         }
+
         private XLWorkbook SetupWorkbook()
         {
             var wb = new XLWorkbook();
